@@ -51,6 +51,7 @@ pub mod ffi {
         __variant2,
     }
 
+    // NOTE: This is also not from Rust 1.49 but from a more recent version of core
     #[lang = "CStr"]
     #[repr(transparent)]
     pub struct CStr {
@@ -84,10 +85,17 @@ pub mod mem {
 pub mod panicking {
     #[lang = "panic"] // needed by codegen for panic on overflow and other `Assert` MIR terminators
     pub const fn panic(_: &'static str) -> ! {
+        // FIXME: We need Rust-GCC/gccrs#5118 to be fixed before this can be implemented
+        // properly, otherwise asserting in const contexts triggers an error about calling non-const
+        // functions from const contexts.
+        // FIXME: Display a message for now?
+
         // super::intrinsics::abort()
     }
 
     pub const fn panic_str(_: &str) -> ! {
+        // FIXME: Likewise ^
+
         // super::intrinsics::abort()
     }
 }
