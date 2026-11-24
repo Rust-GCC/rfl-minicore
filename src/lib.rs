@@ -119,6 +119,20 @@ pub mod macros {
         ($cond:expr, $($arg:tt)+) => {{ /* compiler built-in */ }};
     }
 
+    #[rustc_builtin_macro]
+    #[macro_export]
+    macro_rules! concat {
+        ($($e:expr),* $(,)?) => {{ /* compiler built-in */ }};
+    }
+
+    #[rustc_builtin_macro]
+    #[macro_export]
+    macro_rules! stringify {
+        ($($t:tt)*) => {
+            /* compiler built-in */
+        };
+    }
+
     #[macro_export]
     macro_rules! panic {
         () => {
@@ -129,9 +143,10 @@ pub mod macros {
         };
         ($msg:expr $(,)?) => {
             $crate::panicking::panic_str($msg)
-        }; // NOTE: Do we need it?
-           // ($fmt:expr, $($arg:tt)+) => (
-           //     $crate::panicking::panic_fmt($crate::format_args!($fmt, $($arg)+))
-           // );
+        };
+        ($fmt:expr, $($arg:tt)+) => {
+            // NOTE: This is wrong, but we don't care since we just want to abort
+            $crate::panicking::panic_str($fmt)
+        };
     }
 }
