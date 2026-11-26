@@ -9,14 +9,6 @@
 )]
 #![no_core]
 
-pub mod marker {
-    #[lang = "copy"]
-    pub trait Copy {}
-}
-
-#[lang = "sized"]
-pub trait Sized {}
-
 #[prelude_import]
 #[allow(unused)]
 use prelude::rust_2021::*;
@@ -107,6 +99,119 @@ pub mod intrinsics {
 
         #[rustc_const_stable(feature = "const_abort", since = "1.40.0")]
         pub fn abort() -> !;
+    }
+}
+
+pub mod num {}
+
+pub mod marker {
+    use crate::clone::Clone;
+
+    #[stable(feature = "rust1", since = "1.0.0")]
+    #[lang = "sized"]
+    #[rustc_on_unimplemented(
+        message = "the size for values of type `{Self}` cannot be known at compilation time",
+        label = "doesn't have a size known at compile-time"
+    )]
+    #[fundamental] // for Default, for example, which requires that `[T]: !Default` be evaluatable
+    #[rustc_specialization_trait]
+    pub trait Sized {
+        // Empty.
+    }
+
+    #[stable(feature = "rust1", since = "1.0.0")]
+    #[lang = "copy"]
+    // FIXME(matthewjasper) This allows copying a type that doesn't implement
+    // `Copy` because of unsatisfied lifetime bounds (copying `A<'_>` when only
+    // `A<'static>: Copy` and `A<'_>: Clone`).
+    // We have this attribute here for now only because there are quite a few
+    // existing specializations on `Copy` that already exist in the standard
+    // library, and there's no way to safely have this behavior right now.
+    #[rustc_unsafe_specialization_marker]
+    pub trait Copy: Clone {
+        // Empty.
+    }
+
+    #[lang = "phantom_data"]
+    #[stable(feature = "rust1", since = "1.0.0")]
+    pub struct PhantomData<T: ?Sized>;
+}
+
+pub mod clone {
+    use crate::marker::Sized;
+
+    #[stable(feature = "rust1", since = "1.0.0")]
+    #[lang = "clone"]
+    pub trait Clone: Sized {
+        /// Returns a copy of the value.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// let hello = "Hello"; // &str implements Clone
+        ///
+        /// assert_eq!("Hello", hello.clone());
+        /// ```
+        #[stable(feature = "rust1", since = "1.0.0")]
+        #[must_use = "cloning is often expensive and is not expected to have side effects"]
+        fn clone(&self) -> Self;
+
+        /// Performs copy-assignment from `source`.
+        ///
+        /// `a.clone_from(&b)` is equivalent to `a = b.clone()` in functionality,
+        /// but can be overridden to reuse the resources of `a` to avoid unnecessary
+        /// allocations.
+        #[inline]
+        #[stable(feature = "rust1", since = "1.0.0")]
+        fn clone_from(&mut self, source: &Self) {
+            *self = source.clone()
+        }
+    }
+
+    /// Derive macro generating an impl of the trait `Clone`.
+    #[rustc_builtin_macro]
+    #[stable(feature = "builtin_macro_prelude", since = "1.38.0")]
+    #[allow_internal_unstable(core_intrinsics, derive_clone_copy)]
+    pub macro Clone($item:item) {
+        /* compiler built-in */
+    }
+}
+
+pub mod convert {
+    use crate::clone::Clone;
+
+    #[stable(feature = "convert_infallible", since = "1.34.0")]
+    #[derive(Copy)]
+    pub enum Infallible {}
+
+    #[stable(feature = "convert_infallible", since = "1.34.0")]
+    impl Clone for Infallible {
+        fn clone(&self) -> Infallible {
+            match *self {}
+        }
+    }
+}
+
+pub mod cell {
+    use crate::marker::Sized;
+
+    #[lang = "unsafe_cell"]
+    #[stable(feature = "rust1", since = "1.0.0")]
+    #[repr(transparent)]
+    #[repr(no_niche)] // rust-lang/rust#68303.
+    pub struct UnsafeCell<T: ?Sized> {
+        _value: T,
+    }
+}
+
+pub mod pin {
+    #[stable(feature = "pin", since = "1.33.0")]
+    #[lang = "pin"]
+    #[fundamental]
+    #[repr(transparent)]
+    #[derive(Copy, Clone)]
+    pub struct Pin<P> {
+        _pointer: P,
     }
 }
 
